@@ -1,0 +1,98 @@
+import bpy
+from mathutils import Matrix, Vector
+from math import acos, degrees
+
+def get_pose_matrix_in_other_space(mat, pose_bone):
+	
+	''' Returns the transform matrix relative to pose_bone’s current
+	transform space. In other words, presuming that mat is in
+	armature space, slapping the returned matrix onto pose_bone
+	should give it the armature-space transforms of mat.
+	TODO: try to handle cases with axis-scaled parents better.
+	'''
+	
+	rest = pose_bone.bone.matrix_local.copy()
+	rest_inv = rest.inverted()
+	if pose_bone.parent:
+		par_mat = pose_bone.parent.matrix.copy()
+		par_inv = par_mat.inverted()
+		par_rest = pose_bone.parent.bone.matrix_local.copy()
+	else:
+		par_mat = Matrix()
+		par_inv = Matrix()
+		par_rest = Matrix()
+		
+	# Get matrix in bone's current transform space
+	smat = rest_inv @ (par_rest @ (par_inv @ mat))
+	
+	# Compensate for non-local location
+	#if not pose_bone.bone.use_local_location:
+	#    loc = smat.to_translation() * (par_rest.inverted() * rest).to_quaternion()
+	#    smat.translation = loc
+	return smat
+
+def get_local_pose_matrix(pose_bone):
+	
+	''' Returns the local transform matrix of the given pose bone.'''
+	return get_pose_matrix_in_other_space(pose_bone.matrix, pose_bone)
+
+
+def frame(f):
+	
+	bpy.data.scenes[0].frame_set(f)
+	
+
+def get_bones_rotation(armature,bone,axis):
+	
+	mat = get_local_pose_matrix(bpy.data.objects[armature].pose.bones[bone])
+	if axis == 'z':
+		return degrees(mat.to_euler().z)
+	elif axis == 'y':
+		return degrees(mat.to_euler().y)
+	elif axis == 'x':
+		return degrees(mat.to_euler().x)
+
+
+
+
+Start = bpy.data.scenes['Scene'].frame_start
+End = bpy.data.scenes['Scene'].frame_end
+
+############################################################## main program setup
+
+frame(1) # set the frame to 1
+frame(Start)
+
+for q in range(Start, End): #####################3###################### main program loop
+	frame(q)
+	for ob in bpy.context.scene.objects:
+		if ob.type != 'ARMATURE':
+			continue
+		else:
+			for obj in ob.pose.bones:
+				print(obj.name)
+				bone = ob.data.bones[obj.name]
+				pose_bone = ob.pose.bones[obj.name]
+
+				x = round(get_bones_rotation(ob.name, obj.name, 'x'), 3)
+				y = round(get_bones_rotation(ob.name, obj.name, 'y'), 3)
+				z = round(get_bones_rotation(ob.name, obj.name, 'z'), 3)
+			
+				print('Frame : ', q)
+				print('Bot : ', obj.name)
+				print('Rotatie X : ', x)
+				print('Rotatie Y : ', y)
+				print('Rotatie Z : ', z)
+
+	'''log.write(str(q))
+	log.write('A----A')
+	log.write(str(servo1))
+	log.write('B----B')
+	log.write(str(servo2))
+	log.write('C----C')
+	log.write(str(servo3))
+	log.write('')
+
+	print(q,"----",servo1,servo2,servo3)  
+	
+log.close()'''
